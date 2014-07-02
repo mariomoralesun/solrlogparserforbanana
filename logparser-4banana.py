@@ -13,9 +13,6 @@ parser.add_argument('-workdir', default='./',type=str, nargs='+', help='Working 
 parser.add_argument('-tail',type=int, nargs='?', help='How many seconds to wait to parse files (ex: 60)')
 args = parser.parse_args()
 
-
-#C:\Python34\python.exe logparse.py -solr http://192.168.137.128:8983/solr/ -collection collection1 -sendinc 100 -log #C:\Users\nvasilyev\Downloads\core.2014_04_09-10k.log
-
 maindata = ''
 maincount = 0
 mainparsedfiles = {}
@@ -39,7 +36,8 @@ def main():
 
 
 def readControl():
-    
+    global mainparsedfiles
+    global mainparsecontrolfile
     if args.workdir[0]:
         if os.path.isfile(args.workdir[0]+'logparser.txt'):
             try:
@@ -50,18 +48,21 @@ def readControl():
             try:
                 mainparsecontrolfile = open(args.workdir[0]+'logparser.txt','r+')
             except:
-                print("Couldn't Create Control File: " + args.workdir[0]+'logparser.txt')
-    global mainparsedfiles
+                print("Couldn't Create Control File for Reading: " + args.workdir[0]+'logparser.txt')
+    
     #global mainparsecontrolfile
-    for x in mainparsecontrolfile.readlines():
-        a = x[:-1].split('\t')
-        mainparsedfiles[a[0]] = a[1]
-    mainparsecontrolfile.close()
+    if mainparsecontrolfile:
+        for x in mainparsecontrolfile.readlines():
+            a = x[:-1].split('\t')
+            mainparsedfiles[a[0]] = a[1]
+        mainparsecontrolfile.close()
     return True
     
 def writeControl():
     #global mainparsecontrolfile
     global mainparsedfiles
+    print(mainparsedfiles)
+    
     if args.workdir[0]:
         if os.path.isfile(args.workdir[0]+'logparser.txt'):
             try:
@@ -74,7 +75,7 @@ def writeControl():
                 mainparsecontrolfile = open(args.workdir[0]+'logparser.txt','w+')
                 readControl()
             except:
-                print("Couldn't Create Control File: " + args.workdir[0]+'logparser.txt')
+                print("Couldn't Create Control File for Write: " + args.workdir[0]+'logparser.txt')
     data = ''
     for x in mainparsedfiles:
         data += str(x) + "\t" + str(mainparsedfiles[x]) + "\n"
@@ -99,49 +100,55 @@ def parseFile(filename):
 	    file = open(filename,'r')
     except:
 	    print("Couldn't open File: " + filename)
+    pos = 0    
     if filename in mainparsedfiles:
+        pos = file.tell()
         file.seek(0,2)
-        if str(file.tell()) == mainparsedfiles[filename]:
+        if file.tell() == int(mainparsedfiles[filename]):
             print("File is not changed: " + filename + " - " + str(file.tell()))
             file.close()
             return True
         else:
             file.seek(int(mainparsedfiles[filename]),0)
-    
+        
     if type1 == 'solrcore':
-        for l in file.readlines():
+        l = file.readline()
+        while l:
             t = parseSolrCoreLine(l)
             if 'id' in t:
                 count +=1
-                print ("Indexing Line %s" % (count))
+                #print ("Indexing Line %s " % (count))#- file pos: %s" % (count, file.tell()))
                 t['id'] = t['id'].replace(':','_')
-                if count%args.sendinc[0] == 0:
+                mainparsedfiles[filename] = file.tell()
+                if count % args.sendinc[0] == 0:
+                    print("Processed %s files" % (count))
                     indexToSolr(t,1)
-                    pass
+                    writeControl()
                 else: 
                     indexToSolr(t,0)
-                    pass
-            mainparsedfiles[filename] = file.tell()
+            l = file.readline()
+        t['id'] = 'commit'
+        indexToSolr(t,1)
     file.close()
     writeControl()
+    os.system("gzip " + filename)
+    mainparsedfiles[filename+'.gz'] = mainparsedfiles[filename]
     
-def writeToFile(h):
-    output = open(r'c:\out10k.json','w')
-    j = json.dumps(h)
-    output.write(j+'\n')
+def writeToFile(file,data):
+    output = open(file,'r+')
+    output.write(data+'\n')
     output.close()
 
 def indexToSolr(f,c):
     d = json.dumps(f)
     global maincount
     global maindata
-    
-    print ("Main Count is " + str(maincount))
+    #print ("Main Count is " + str(maincount))
     if c == 1:
-        print("Sending Commit")
+        #print("Sending Commit")
         solr = args.solr[0]+args.collection[0]+'/update?commit=true'
     else:
-        print("Sending Data")
+        #print("Sending Data")
         solr = args.solr[0]+args.collection[0]+'/update'
     
     if maincount == 0:
@@ -154,6 +161,11 @@ def indexToSolr(f,c):
         maindata += ']\n'
         #print(maindata)
         r = requests.post(solr,data=maindata,headers = {'content-type': 'application/json'})
+        if r.status_code != 200:
+            print(r.status_code)
+            print(r.raw)
+            print(r.text)
+        
         r.close()
         maindata = ''
         maincount = 0
