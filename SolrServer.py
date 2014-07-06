@@ -9,7 +9,7 @@ import atexit
 class SolrServer:
     databuffer = ''
     buffercount = 0
-    sendinc = 1000
+    sendinc = 5000
     
     def __init__(self,solrserver,sendinc):
         self.solr = solrserver
@@ -36,7 +36,8 @@ class SolrServer:
         
         if self.buffercount >= self.sendinc:
             if commit == 1 or commit == True:
-                solr = self.solr+'update?commit=true'
+                #solr = self.solr+'update?commit=true'
+                solr = self.solr+'update'
                 self.log_out("Sending Commit with next batch")
             else:
                 solr = self.solr+'update'
