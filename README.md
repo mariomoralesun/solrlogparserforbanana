@@ -8,6 +8,7 @@ Written for python 3.4 and Solr 4.9, requires python requests module.
 run logparser2.py -h for help and usage instructions:
 
 usage: logparse2.py [-h] [-solr SOLR [SOLR ...]]
+
                     [-collection COLLECTION [COLLECTION ...]]
                     [-sendinc SENDINC] [-commit COMMIT]
                     [-logs LOGS [LOGS ...]] [-workdir WORKDIR [WORKDIR ...]]

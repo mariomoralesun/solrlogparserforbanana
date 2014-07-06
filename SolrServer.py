@@ -11,14 +11,15 @@ class SolrServer:
     buffercount = 0
     sendinc = 5000
     
-    def __init__(self,solrserver,sendinc):
+    def __init__(self,solrserver,collection,sendinc):
+
         self.solr = solrserver
-        
         if solrserver[-1] == '/':
             self.solr = solrserver
         else:
-            self.solr = solrserver + '/'
+            self.solr += '/'
         
+        self.solr += str(collection) + '/'
         self.sendinc = sendinc
         
     def set_param(p,v):
@@ -33,7 +34,7 @@ class SolrServer:
             self.databuffer = '[\n'
         self.buffercount += 1
         self.databuffer += data + ',\n'
-        
+        solr = self.solr
         if self.buffercount >= self.sendinc:
             if commit == 1 or commit == True:
                 #solr = self.solr+'update?commit=true'
@@ -41,7 +42,7 @@ class SolrServer:
                 self.log_out("Sending Commit with next batch")
             else:
                 solr = self.solr+'update'
-        
+
             self.databuffer = self.databuffer[:-2]
             self.databuffer += ']\n'
             

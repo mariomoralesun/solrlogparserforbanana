@@ -24,7 +24,8 @@ class SolrLogParser:
                 out['event_timestamp'] = out['event_timestamp'][2:]
                 
             if len(temp)>7 and temp[3] == 'core.SolrCore' and temp[2] == "INFO":
-                accepted = ['path','status','QTime','hits']
+                acceptedstrings = ['path']
+                acceptedints = ['status','QTime','hits']
                 out['collection'] = self.getCollection(temp[5])
                 for item in temp[6:len(temp)]:
                     #Item is each pair of arguments, ex: status=0
@@ -32,9 +33,10 @@ class SolrLogParser:
                         #Only proceed if it has an equal sign in it and it is not the params field
                         t2 = item.split('=')
                         for param in t2:
-                            if t2[0] in accepted:
+                            if t2[0] in acceptedstrings:
                                 out[t2[0]] = t2[1].replace('/','')
-                    
+                            elif t2[0] in acceptedints:
+                                out[t2[0]] = int(t2[1].replace('/',''))
                     if re.search('^params',item):
                         #Parse Params
                         params = self.parseParams(item)
