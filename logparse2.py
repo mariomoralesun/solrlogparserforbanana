@@ -11,10 +11,10 @@ import gzip
 import time
 
 parser = argparse.ArgumentParser(description='Script to Parse Solr Core log file for reporting using banana')
-parser.add_argument('-solr', type=str, default='http://192.168.137.128:8983/solr/', nargs='+', help='Address of Solr server (ex: http://192.168.137.128:8983/solr/)')
+parser.add_argument('-solr', type=str, default='http://localhost:8983/solr/', nargs='+', help='Address of Solr server (ex: http://192.168.137.128:8983/solr/)')
 parser.add_argument('-collection',  type=str, nargs='+', help='Name of Collection: (ex: collection1)')
-parser.add_argument('-sendinc', default=1000, type=int, nargs=1, help='Number of documents after which to send and commit (ex: 1000)')
-parser.add_argument('-commit', default=10000, type=int, nargs=1, help='Number of documents after which to send and commit (ex: 1000)')
+parser.add_argument('-sendinc', default=5000, type=int, nargs=1, help='Number of documents after which to send and commit (ex: 1000)')
+parser.add_argument('-commit', default=50000, type=int, nargs=1, help='Number of documents after which to send and commit (ex: 10000)')
 parser.add_argument('-logs',  type=str, nargs='+', help='Directory of Log Files (ex: /opt/sw/solr/logs/)')
 parser.add_argument('-workdir', default='./',type=str, nargs='+', help='Working Directory (ex: /opt/sw/solr/logs/)')
 parser.add_argument('-archive',action='store_true', default=False, help='Use this to process log files in an archive, they have to be gzipped')
@@ -30,8 +30,8 @@ def log_out(s):
     print("{} - {}".format(datetime.datetime.now(),s))
 
 
-
 def main():
+
     if args.archive:
         log_out("Running in archive Processing Mode")
         for log in args.logs:
@@ -50,7 +50,7 @@ def main():
                 log_out("Going to Process {} in archive mode".format(log))
                 files = doDir(log)
                 if len(files) > 0:
-                    maindata['controlfile']=log+'parsercontrolfile.txt'
+                    maindata['controlfile']=log+'parsercontrolfile.txt-archive.txt'
                     for file in files:
                         log_out("Found "+ file)
                     for file in files:
@@ -130,7 +130,7 @@ def tail_file(file):
                 count += 1
 
                 if count % args.sendinc == 0:
-                    #print("Processed %s lines - Sending Data to Solr" % (str(count)))
+                    print("Processed %s lines - Sending Data to Solr" % (str(count)))
                     solr.send_dict_to_solr(data,1)
                     mark_as_inprogress(file, fh.tell())
                 else: 
@@ -138,13 +138,20 @@ def tail_file(file):
             line = fh.readline()
 
             if not line:
-                log_out("Caught up on the File. Pending Changes")
-                time.sleep(30)
+                log_out("Caught up on the File. Pending Changes - Short")
+                time.sleep(10)
                 if startsize < os.path.getsize(file):
                     startsize = os.path.getsize(file)
                     #File grew while we were processing it, so it is still active, need to periodically scan it. 
                     line = fh.readline
                     
+            if not line:
+                log_out("Caught up on the File. Pending Changes - Long")
+                time.sleep(120)
+                if startsize < os.path.getsize(file):
+                    startsize = os.path.getsize(file)
+                    #File grew while we were processing it, so it is still active, need to periodically scan it. 
+                    line = fh.readline        
         mark_as_inprogress(file, fh.tell())
         fh.close()
         solr.send_rest()
