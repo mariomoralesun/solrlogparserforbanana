@@ -21,6 +21,10 @@ parser.add_argument('-archive',action='store_true', default=False, help='Use thi
 parser.add_argument('-tail',action='store_true', default=False, help='Use this to process log files in an archive, they have to be gzipped')
 args = parser.parse_args()
 
+if len(sys.argv) < 2:
+    os.system(sys.argv[0] + " -h")
+    sys.exit()
+
 maindata={}
 maindata['controlfile']=args.workdir[0]+'parsercontrolfile2.txt'
 control = {}
@@ -37,7 +41,7 @@ def main():
         for log in args.logs:
             if os.path.isfile(log):
                 #It's a file
-                if re.search('.log.gz$',log):
+                if re.search('core\.\d\d\d\d.*.log.gz$',log):
                     maindata['controlfile'] = os.path.dirname(os.path.realpath(log)) + os.sep + 'parsercontrolfile-archive.txt'
                     stat = archive_file_proc(log)
                     if stat == False:
@@ -50,6 +54,8 @@ def main():
                 log_out("Going to Process {} in archive mode".format(log))
                 files = doDir(log)
                 if len(files) > 0:
+                    if log[-1] != os.sep:
+                        log += os.sep
                     maindata['controlfile']=log+'parsercontrolfile.txt-archive.txt'
                     for file in files:
                         log_out("Found "+ file)
@@ -59,6 +65,7 @@ def main():
                             log_out("Something Went Wrong with Processing " + log)
             else:
                 log_out("Supplied Input is not a valid directory or a compressed log file")
+
     elif args.tail:
         log_out("Running in -tail mode")
         if not os.path.isfile(args.logs[0]) and not os.path.isdir(args.logs[0]):
