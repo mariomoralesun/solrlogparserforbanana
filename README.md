@@ -16,12 +16,13 @@ usage: logparse2.py [-h] [-solr SOLR [SOLR ...]]
 
 Script to Parse Solr Core log file for reporting using banana
 Schema Fields:
-   <field name="QTime" type="int" indexed="true" stored="true"/>
-   <field name="hits" type="int" indexed="true" stored="true"/>
-   <field name="event_timestamp" type="date" indexed="true" stored="true"/>
-   <field name="q" type="qtext" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
-   <field name="fq" type="qtext" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
-   <field name="sort" type="qtext" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
+
+	<field name="QTime" type="int" indexed="true" stored="true"/>
+	<field name="hits" type="int" indexed="true" stored="true"/>
+	<field name="event_timestamp" type="date" indexed="true" stored="true"/>
+	<field name="q" type="qtext" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
+	<field name="fq" type="qtext" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
+	<field name="sort" type="qtext" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
    
 	<dynamicField name="fq_*"  type="qtext"  indexed="true"  stored="true" />
 	<dynamicField name="sort_*"  type="qtext"  indexed="true"  stored="true" />
