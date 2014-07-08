@@ -218,11 +218,9 @@ def check_if_processed(file):
     global control
     file = os.path.basename(file)
     control = read_control()
-    #print(control)
     log_out("Checking {}".format(file))
-    
     try:
-        if file in control and (file[control] == "1" or file[control] == "0"):
+        if file in control and (control[file] == "1" or control[file] == "0"):
             return True
     except:
         return False

@@ -66,18 +66,13 @@ class SolrLogParser:
                 #l is each set of arguments
                 la = l.split('=')
                 #la is an array of parameter and value
-                if la[0] == 'fq' or la[0] == 'sort':
+                if la[0] == 'fq':# or la[0] == 'sort':
                     la[1] = re.sub('[()]','',la[1])
                     la[1] = re.sub('\+','_',la[1])
-                    #la = ['sort', 'pr_desc']
-                    
-                    #Latest input filtering changes
                     if ':' in la[1]:
                         lb = la[1].split(':')
-                    else:
-                        lb = la
-                    out[la[0] +'_'+ lb[0]] = lb[1]
-                    out[la[0]] += lb[0] + ' '
+                        out[la[0] +'_'+ lb[0]] = lb[1]
+                        out[la[0]] += lb[0] + ' '
                 else:
                     if ':' in la[1]:
                         la[1] = la[1].replace(':','\:')
