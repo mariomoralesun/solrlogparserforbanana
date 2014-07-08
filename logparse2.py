@@ -18,6 +18,7 @@ parser.add_argument('-commit', type=int, nargs='?', help='Optional argument to d
 parser.add_argument('-logs',  type=str, nargs='+', help='Location of the log files (ex: /opt/sw/solr/logs/)')
 parser.add_argument('-archive',action='store_true', default=False, help='Use this to process log files in an archive, they have to be gzipped. Point at a directory and let it go.')
 parser.add_argument('-tail',action='store_true', default=False, help='Use this option to tail active log files. Point it at solr\'s dir and it will do the rest. ')
+parser.add_argument('-offset',type=str, default="+6", nargs='?', help='Provide log time offset to UTC. For example, if in eastern use -offset +5')
 #Will add support for this later
 #parser.add_argument('-s',action='store_true', default=False, help='Use this option to silence regular reporting. ')
 args = parser.parse_args()
@@ -85,7 +86,7 @@ def find_active_log(dir):
     if not os.path.isdir(dir):
         log_out("Not a valid directory supplied")
     else:
-        parser = SolrLogParser()
+        parser = SolrLogParser(args.offset)
         log_out("Checking {} for Active Log Files".format(dir))
         dirfilelist = [os.path.join(dir,f) for f in os.listdir(dir) if os.path.isfile(os.path.join(dir,f))]
         files = {}
@@ -103,7 +104,7 @@ def find_active_log(dir):
                 tail_file(file)
 
 def tail_file(file):
-    parser = SolrLogParser()
+    parser = SolrLogParser(args.offset)
     solr = SolrServer(args.solr,args.collection,args.sendinc)
     
     if check_if_processed(file) == True:
@@ -175,7 +176,7 @@ def doDir(directory):
         return files
                 
 def archive_file_proc(file):
-    parser = SolrLogParser()
+    parser = SolrLogParser(args.offset)
     solr = SolrServer(args.solr,args.collection,args.sendinc)
     
     if check_if_processed(file) == True:
