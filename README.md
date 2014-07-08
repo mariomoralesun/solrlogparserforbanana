@@ -15,23 +15,27 @@ usage: logparse2.py [-h] [-solr SOLR [SOLR ...]]
                     [-archive] [-tail]
 
 Script to Parse Solr Core log file for reporting using banana
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -solr SOLR [SOLR ...]
-                        Address of Solr server (ex:
-                        http://192.168.137.128:8983/solr/)
-  -collection COLLECTION [COLLECTION ...]
-                        Name of Collection: (ex: collection1)
-  -sendinc SENDINC      Number of documents after which to send and commit
-                        (ex: 1000)
-  -commit COMMIT        Number of documents after which to send and commit
-                        (ex: 1000)
-  -logs LOGS [LOGS ...]
-                        Directory of Log Files (ex: /opt/sw/solr/logs/)
-  -workdir WORKDIR [WORKDIR ...]
-                        Working Directory (ex: /opt/sw/solr/logs/)
-  -archive              Use this to process log files in an archive, they have
-                        to be gzipped
-  -tail                 Use this to process log files in an archive, they have
-                        to be gzipped
+Schema Fields:
+   <field name="QTime" type="int" indexed="true" stored="true"/>
+   <field name="hits" type="int" indexed="true" stored="true"/>
+   <field name="event_timestamp" type="date" indexed="true" stored="true"/>
+   <field name="q" type="qtext" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
+   <field name="fq" type="qtext" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
+   <field name="sort" type="qtext" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
+   
+	<dynamicField name="fq_*"  type="qtext"  indexed="true"  stored="true" />
+	<dynamicField name="sort_*"  type="qtext"  indexed="true"  stored="true" />
+	<dynamicField name="*"  type="string"  indexed="true"  stored="true" />
+	
+	
+	FieldType:
+		<fieldType name="qtext" class="solr.TextField" positionIncrementGap="100">
+      <analyzer type="index">
+        <tokenizer class="solr.StandardTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.StandardTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+      </analyzer>
+    </fieldType>
