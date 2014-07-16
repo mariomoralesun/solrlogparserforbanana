@@ -77,5 +77,3 @@ Schema Fields:
       </analyzer>
     </fieldType>
 	
-To Do List:
-	Incorporate functionality that would read a configuration file and transform certain values for certain fields appropriately. This would be used to translate field names and values from codes into "management type" friendly names. 
