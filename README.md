@@ -17,8 +17,6 @@ In both modes the script will create a tab delimited control file (parsercontrol
 -solr - Solr instance (i.e. http://localhost:8983/solr)
 -offset - Provides a way to specify time offset between the time in the logs and UTC. (i.e. -offset +5 for EST)
 
-Example: 
-python logparse2.py -tail -logs /logs/ -solr http://192.168.137.128:8983/solr -collection collection1 -sendinc 15000
 
 	run logparser2.py -h for help and usage instructions:
 	usage: logparse2.py [-h] [-solr [SOLR]] [-collection [COLLECTION]]
@@ -48,7 +46,8 @@ python logparse2.py -tail -logs /logs/ -solr http://192.168.137.128:8983/solr -c
 	  -offset [OFFSET]      Provide log time offset to UTC. For example, if in
 							eastern use -offset +5
 
-
+Example: 
+     python logparse2.py -tail -logs /logs/ -solr http://192.168.137.128:8983/solr -collection collection1 -sendinc 15000 -offset +5
 
 					
 Configure the following fields in your schema: 
