@@ -4,7 +4,7 @@ import requests
 import argparse
 import os
 import sys
-from solrlogparser import SolrLogParser
+from SolrLogParser import SolrLogParser
 import datetime
 from SolrServer import SolrServer
 import gzip 
@@ -13,11 +13,11 @@ import time
 parser = argparse.ArgumentParser(description='Script to Parse Solr Core log file for reporting using banana')
 parser.add_argument('-solr', type=str, default='http://localhost:8983/solr/', nargs='?', help='Address of Solr server (ex: http://192.168.137.128:8983/solr/)')
 parser.add_argument('-collection', type=str, nargs='?', help='Name of Collection: (ex: collection1)')
-parser.add_argument('-sendinc', default=5000, type=int, nargs=1, help='How many documents send to Solr in a single batch (default is 5000)')
+parser.add_argument('-sendinc', default=5000, type=int, nargs='?', help='How many documents send to Solr in a single batch (default is 5000)')
 parser.add_argument('-commit', type=int, nargs='?', help='Optional argument to define after how many documents to send a commit. Not recommended, use Solr AutoCommit instead.')
-parser.add_argument('-logs',  type=str, nargs='+', help='Location of the log files (ex: /opt/sw/solr/logs/)')
+parser.add_argument('-logs',  type=str, nargs='+', help='Location of the log files (ex: /logs/)')
 parser.add_argument('-archive',action='store_true', default=False, help='Use this to process log files in an archive, they have to be gzipped. Point at a directory and let it go.')
-parser.add_argument('-tail',action='store_true', default=False, help='Use this option to tail active log files. Point it at solr\'s dir and it will do the rest. ')
+parser.add_argument('-tail',action='store_true', default=False, help='Use this option to tail active log files. Point it at solr\'s log dir and it will do the rest. ')
 parser.add_argument('-offset',type=str, default="+6", nargs='?', help='Provide log time offset to UTC. For example, if in eastern use -offset +5')
 #Will add support for this later
 #parser.add_argument('-s',action='store_true', default=False, help='Use this option to silence regular reporting. ')
@@ -41,7 +41,7 @@ def main():
         for log in args.logs:
             if os.path.isfile(log):
                 #It's a file
-                if re.search('core\.\d\d\d\d.*.log.gz$',log):
+                if re.search('.gz$',log):
                     maindata['controlfile'] = os.path.dirname(os.path.realpath(log)) + os.sep + 'parsercontrolfile-archive.txt'
                     stat = archive_file_proc(log)
                     if stat == False:
@@ -83,12 +83,15 @@ def main():
         log_out("No Mode Specified, pick -archive for gzipped files, or -tail for current log files")
 
 def find_active_log(dir):
+    """
+    Used in tail mode to find a log file that is currently being written to
+    """
     if not os.path.isdir(dir):
         log_out("Not a valid directory supplied")
     else:
         parser = SolrLogParser(args.offset)
         log_out("Checking {} for Active Log Files".format(dir))
-        dirfilelist = [os.path.join(dir,f) for f in os.listdir(dir) if os.path.isfile(os.path.join(dir,f))]
+        dirfilelist = [os.path.join(dir,f) for f in os.listdir(dir) if os.path.isfile(os.path.join(dir,f)) and '.log' in f]
         files = {}
         for file in dirfilelist:
             if parser.logtype_uncomp(file) == 'solrcore':
@@ -104,6 +107,9 @@ def find_active_log(dir):
                 tail_file(file)
 
 def tail_file(file):
+    """
+    Used in tail mode to actively tail the file, parse contents and index data to Solr. 
+    """
     parser = SolrLogParser(args.offset)
     solr = SolrServer(args.solr,args.collection,args.sendinc)
     
@@ -121,7 +127,7 @@ def tail_file(file):
             
     startsize = os.path.getsize(file)
         
-    with open(file,'r') as fh:
+    with open(file,'r', encoding="utf8") as fh:
         filename = os.path.basename(file)
         if filename in control and (control[filename] != "0" or control[filename] != "1"):
             fh.seek(int(control[filename]))
@@ -131,8 +137,8 @@ def tail_file(file):
         #left off here, need to set it up so it updates file byte offset in control file
         while line:
             data = {}
-            data = parser.parseSolrCoreLine(str(line))
-            if 'id' in data:
+            data = parser.parseAnyLine(str(line))
+            if type(data) == dict and 'id' in data:
                 
                 count += 1
                 if type(args.commit) == int and count % args.commit == 0:
@@ -168,7 +174,10 @@ def tail_file(file):
     find_active_log(os.path.dirname(file))
     
 def doDir(directory):
-    files = [os.path.join(directory,f) for f in os.listdir(directory) if os.path.isfile(os.path.join(directory,f)) and re.search('core.\d\d\d\d.*.log.gz$',f)]
+    """
+    Gets a list of files from a directory
+    """
+    files = [os.path.join(directory,f) for f in os.listdir(directory) if os.path.isfile(os.path.join(directory,f)) and re.search('.gz$',f)]
     if files:
         return files
     else:
@@ -176,6 +185,9 @@ def doDir(directory):
         return files
                 
 def archive_file_proc(file):
+    """
+    Processes a file in archive mode
+    """
     parser = SolrLogParser(args.offset)
     solr = SolrServer(args.solr,args.collection,args.sendinc)
     
@@ -189,32 +201,31 @@ def archive_file_proc(file):
         else:
             return False
     
-    with gzip.open(file,'r') as fh:
+    with gzip.open(file,'r',encoding="utf8") as fh:
         count = 1
         for line in fh.readlines():
             data = {}
            
-            data = parser.parseSolrCoreLine(str(line))
-            if 'id' in data:
+            data = parser.parseAnyLine(str(line))
+            if type(data) == dict and 'id' in data:
                 count += 1
+                print(data)
                 if type(args.commit) == int and count % args.commit == 0:
                     print("Processed %s lines - Sending Data to Solr" % (str(count)))
                     solr.send_dict_to_solr(data,1)
-                    #write_json(file,data)
+
                 else: 
                     solr.send_dict_to_solr(data,0)
-                    #write_json(file, data)
+
         fh.close()
         solr.send_rest()
         mark_as_processed(file)
         return True
-
-def write_json(file, data):
-    directory = os.path.dirname(os.path.realpath(file))
-    pass
-    
     
 def check_if_processed(file):
+    """
+    Checks if a file has been processed or is actively being processed. 
+    """
     global control
     file = os.path.basename(file)
     control = read_control()
@@ -232,7 +243,6 @@ def mark_as_processed(file):
     control[file] = "1"
     log_out("Marking {} as Processed".format(file))
     write_control()
-    
     
 def mark_as_inprogress(file,*stat):
     global control

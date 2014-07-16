@@ -6,7 +6,18 @@ import os
 
 class SolrLogParser:
     utc_offset = 0
-    
+    matches = {\
+           "time": { "1": r"\d\d:\d\d\:\d\d[,|\.]\d*", \
+                    "1-len": 50},
+           "date": { "1":r"\d\d\d\d\-\d\d\-\d\d", \
+                     "1-len": 25}, \
+           "params": r"params={.*}", \
+           "params-len":  200000,\
+           "QTime":"QTime=(\d+)",\
+           "QTime-len":5000,\
+           "status":"status=(\d+)",\
+           "status-len":5000\
+           }
     def __init__(self, offset):
         self.utc_offset = offset
     
@@ -14,9 +25,10 @@ class SolrLogParser:
         print("{} - {}".format(date.datetime.now(),s))
     
     def parseSolrCoreLine(self,l):
+        if not re.search('params={.*}',l) and not re.search('QTime', l):
+            return
         #Do string filtering for single, double quotes here. As well as for any unencoded characters
         out = {}
-        final = {}
         temp = l.split(' ')
         if len(temp)>3:
             out['date'] = str(temp[0])
@@ -51,10 +63,8 @@ class SolrLogParser:
         return out
         
     def parseParams(self, d):
-        d = d.replace('{','')
-        d = d.replace('}','')
-        d = d.replace('"','')
-        d = d.replace('params=','')
+        for x in ['{','}','"','params=']:
+            d=d.replace(x,'')
         out = {}
         out['fq']=''
         out['sort']=''
@@ -80,6 +90,7 @@ class SolrLogParser:
                             la[1] = la[1].replace(' ','_')
                         out[la[0]] = la[1]
                     else:
+                        la[1] = re.sub('\+','_',la[1])
                         out[la[0]] = la[1]
             except:
                 print("Problem is Parse Params, dump below:")
@@ -119,16 +130,18 @@ class SolrLogParser:
         print("\n\n\n--------\n\n\n")
         
     def logtype_comp(self, filename):
+        #Will run a filtering criteria later
         type = ''
         if re.search(r'core.\d\d\d\d_\d\d_\d\d.log.gz$',filename):
             type='solrcore'
-        return type
+        return 'solrcore'
         
     def logtype_uncomp(self, filename):
+        #Will run a filtering criteria later
         type = ''
         if re.search(r'core.\d\d\d\d_\d\d_\d\d.log$',filename):
             type='solrcore'
-        return type        
+        return 'solrcore'        
     
     def time_to_utc(self, date,time,offset):
         out = ''
@@ -168,16 +181,55 @@ class SolrLogParser:
                 M = "0{}".format(M)
             else:
                 M = str(M)
-        # except:
-            # print("----")
-            # print(date)
-            # print(time)
-            # print(offset)
-            # print(Y,M,D)
-            # print(h,s,ms)
-            # print(nh)
-            # print("----")
 
             
         out = "{}-{}-{}T{}:{}:{},{}Z".format(Y,M,D,nh,m,s,ms)
         return out
+
+    def parseAnyLine(self,line):
+        if not re.search('params={.*}',line) and not re.search('QTime', line):
+            return
+        out = {}
+        matches = self.matches
+        
+        for match in matches:
+            name = match
+            if type(matches[match]) == dict:
+                for submatch in matches[match]:
+                    if 'len' not in submatch: 
+                        regex = matches[match][submatch]
+                        offset = matches[match][submatch+ '-len']
+                        val = self.match_element(line,regex,offset)
+                        if val != False and val != None:
+                            out[name] = val
+            else:
+                if 'len' not in match: 
+                    regex = matches[match]
+                    offset = matches[match+ '-len']
+                    val = self.match_element(line,regex,offset)
+                    if val != False and val != None:
+                        out[name] = val
+        if 'date' in out and 'time' in out:
+            out['event_timestamp'] = self.time_to_utc(out['date'],out['time'],self.utc_offset)
+            if 'b' in out['event_timestamp']:
+                out['event_timestamp'] = out['event_timestamp'][2:]
+        else:
+            return
+        if 'params' in out and 'q' in out['params']:
+            params = self.parseParams(out['params'])
+            if 'q' in params:
+                out.update(params)
+                out['id'] = out['event_timestamp'] + '_' + out['q']
+            elif 'fq' in out:
+                out.update(params)
+                out['id'] = out['event_timestamp'] + '_' + out['fq']
+            out = self.filter_data(out)
+            #print(line)
+            #print(out)
+            return out
+        
+    def match_element(self,line,regex,length):
+            m = re.compile(r'{}'.format(regex)).findall(line[0:length])
+            if m: return m[0]
+            else: return False
+        

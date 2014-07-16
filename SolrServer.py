@@ -63,7 +63,8 @@ class SolrServer:
         return True
     
     def send_rest(self):
-        self.buffercount = self.sendinc
-        t = {}
-        t['id'] = 'commit'
-        self.send_dict_to_solr(t,1)
+        if self.buffercount > 0:
+            self.buffercount = self.sendinc
+            t = {}
+            t['id'] = 'commit'
+            self.send_dict_to_solr(t,1)
